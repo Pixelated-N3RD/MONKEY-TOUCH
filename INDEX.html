@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monkey Touch</title>
+  <style>
+    :root {
+      --blue: #2f5cff;
+      --light-blue: #b9d8ff;
+      --gray: #f2f2f2;
+      --pink: #ff3c7e;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: radial-gradient(#cfd8ff 1px, transparent 1px);
+      background-size: 22px 22px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    h1 {
+      border: 3px solid var(--pink);
+      border-radius: 30px;
+      padding: 12px;
+      color: var(--pink);
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .level {
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: var(--blue);
+    }
+
+    .mode {
+      margin-bottom: 12px;
+      font-weight: bold;
+      font-size: 15px;
+      color: var(--pink);
+      text-shadow: 0 0 6px #ff9cc0, 0 0 10px #ff3c7e;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 2px solid var(--pink);
+      background: white;
+      color: var(--pink);
+      font-weight: bold;
+      cursor: pointer;
+      min-width: 70px;
+    }
+
+    .status {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 2px solid var(--blue);
+      color: var(--blue);
+      font-weight: bold;
+      font-size: 14px;
+      background: white;
+    }
+
+    .board-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 25px;
+      margin-bottom: 25px;
+    }
+
+    .board {
+      position: relative;
+      background: #eeeeee;
+      padding: 14px;
+      border-radius: 18px;
+      box-shadow: inset 0 4px 8px rgba(0,0,0,0.1);
+      display: grid;
+      grid-template-columns: repeat(3, 70px);
+      grid-template-rows: repeat(3, 70px);
+      gap: 12px;
+    }
+
+    .tile {
+      background: white;
+      border-radius: 14px;
+      font-size: 24px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #b0b0b0, 0 8px 12px rgba(0,0,0,0.15);
+      transition: transform 0.25s ease;
+      will-change: transform;
+    }
+
+    .tile.correct {
+      background: var(--light-blue);
+      color: #1b3fff;
+    }
+
+    .empty {
+      background: #e6e6e6;
+      box-shadow: inset 0 3px 6px rgba(0,0,0,0.2);
+      cursor: default;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2f5cff;
+      color: white;
+      padding: 14px 22px;
+      border-radius: 25px;
+      font-weight: bold;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s, bottom 0.4s;
+    }
+
+    .toast.show {
+      opacity: 1;
+      bottom: 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Monkey Touch</h1>
+
+    <div class="level">Level: <span id="level">1</span></div>
+    <div class="mode" id="mode"></div>
+
+    <div class="controls">
+      <button class="btn" id="newGame">NEW</button>
+      <button class="btn" id="resetGame">RESET</button>
+      <div class="status">Time: <span id="time">0</span>s</div>
+      <div class="status">Moves: <span id="moves">0</span></div>
+    </div>
+
+    <div class="board-wrapper">
+      <div class="board" id="board"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const board = document.getElementById("board");
+    const movesEl = document.getElementById("moves");
+    const timeEl = document.getElementById("time");
+    const levelEl = document.getElementById("level");
+    const modeEl = document.getElementById("mode");
+    const newBtn = document.getElementById("newGame");
+    const resetBtn = document.getElementById("resetGame");
+    const toast = document.getElementById("toast");
+
+    const gridSize = 3; // ALWAYS 3x3
+
+    let level = 1;
+    let tiles = [];
+    let solved = [];
+    let moves = 0;
+    let time = 0;
+    let timer = null;
+    let started = false;
+
+    let timeLimit = null;
+    let moveLimit = null;
+    let showHints = true;
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playClick() {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "square";
+      osc.frequency.value = 600;
+      gain.gain.value = 0.05;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    function generateSolved() {
+      solved = [];
+      for (let i = 1; i < 9; i++) solved.push(i);
+      solved.push(null);
+    }
+
+    // Scramble by making valid moves many times (increases difficulty)
+    function deepShuffle(steps) {
+      tiles = [...solved];
+      let empty = tiles.indexOf(null);
+
+      for (let i = 0; i < steps; i++) {
+        const row = Math.floor(empty / 3);
+        const col = empty % 3;
+        const neighbors = [];
+
+        if (row > 0) neighbors.push(empty - 3);
+        if (row < 2) neighbors.push(empty + 3);
+        if (col > 0) neighbors.push(empty - 1);
+        if (col < 2) neighbors.push(empty + 1);
+
+        const move = neighbors[Math.floor(Math.random() * neighbors.length)];
+        [tiles[empty], tiles[move]] = [tiles[move], tiles[empty]];
+        empty = move;
+      }
+    }
+
+    function setupDifficulty() {
+      if (level === 1) {
+        modeEl.textContent = "EASY";
+        deepShuffle(20);
+        timeLimit = null;
+        moveLimit = null;
+        showHints = true;
+      }
+      else if (level === 2) {
+        modeEl.textContent = "MEDIUM";
+        deepShuffle(50);
+        timeLimit = null;
+        moveLimit = null;
+        showHints = true;
+      }
+      else if (level === 3) {
+        modeEl.textContent = "HARD";
+        deepShuffle(100);
+        timeLimit = 90;
+        moveLimit = null;
+        showHints = true;
+      }
+      else {
+        modeEl.textContent = "EXTREMELY HARD";
+        deepShuffle(200);
+        timeLimit = 60;      // strong pressure
+        moveLimit = 80;      // limited moves
+        showHints = false;   // no correct highlighting
+      }
+    }
+
+    function startGame() {
+      clearInterval(timer);
+      moves = 0;
+      time = 0;
+      started = false;
+      movesEl.textContent = moves;
+      timeEl.textContent = time;
+      levelEl.textContent = level;
+
+      generateSolved();
+      setupDifficulty();
+      render();
+    }
+
+    function render() {
+      const oldTiles = Array.from(board.children);
+      const positions = {};
+
+      oldTiles.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        positions[el.dataset.id] = rect;
+      });
+
+      board.innerHTML = "";
+
+      tiles.forEach((value, index) => {
+        const tile = document.createElement("div");
+        tile.classList.add("tile");
+        tile.dataset.id = index;
+
+        if (value === null) {
+          tile.classList.add("empty");
+        } else {
+          tile.textContent = value;
+
+          if (showHints && value === solved[index]) tile.classList.add("correct");
+
+          tile.addEventListener("click", () => moveTile(index));
+        }
+
+        board.appendChild(tile);
+      });
+
+      const newTiles = Array.from(board.children);
+      newTiles.forEach(el => {
+        const oldPos = positions[el.dataset.id];
+        if (!oldPos) return;
+        const newPos = el.getBoundingClientRect();
+        const dx = oldPos.left - newPos.left;
+        const dy = oldPos.top - newPos.top;
+
+        if (dx || dy) {
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+          requestAnimationFrame(() => {
+            el.style.transform = "translate(0, 0)";
+          });
+        }
+      });
+    }
+
+    function moveTile(index) {
+      const emptyIndex = tiles.indexOf(null);
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      const erow = Math.floor(emptyIndex / 3);
+      const ecol = emptyIndex % 3;
+
+      const isNeighbor =
+        (row === erow && Math.abs(col - ecol) === 1) ||
+        (col === ecol && Math.abs(row - erow) === 1);
+
+      if (isNeighbor) {
+        if (!started) {
+          started = true;
+          timer = setInterval(() => {
+            time++;
+            timeEl.textContent = time;
+
+            if (timeLimit && time >= timeLimit) {
+              gameOver("⏱ Time Over! Try Again");
+            }
+          }, 1000);
+        }
+
+        playClick();
+
+        [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+        moves++;
+        movesEl.textContent = moves;
+
+        if (moveLimit && moves >= moveLimit) {
+          gameOver("❌ Move Limit Exceeded!");
+          return;
+        }
+
+        render();
+        checkWin();
+      }
+    }
+
+    function checkWin() {
+      if (tiles.every((v, i) => v === solved[i])) {
+        clearInterval(timer);
+        showToast(`🎉 Level ${level} Cleared!`);
+
+        setTimeout(() => {
+          if (level < 4) {
+            level++;
+            startGame();
+          } else {
+            showToast("🏆 ALL LEVELS COMPLETED!");
+          }
+        }, 1200);
+      }
+    }
+
+    function gameOver(message) {
+      clearInterval(timer);
+      showToast(message);
+      setTimeout(startGame, 1500);
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1200);
+    }
+
+    newBtn.addEventListener("click", () => {
+      level = 1;
+      startGame();
+    });
+
+    resetBtn.addEventListener("click", startGame);
+
+    startGame();
+  </script>
+</body>
+</html>
