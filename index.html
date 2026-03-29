@@ -3,291 +3,649 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monkey Touch</title>
+  <title>Monkey Touch · Brain Arcade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet" />
+
   <style>
     :root {
-      --blue: #2f5cff;
-      --light-blue: #b9d8ff;
-      --gray: #f2f2f2;
-      --pink: #ff3c7e;
+      --black: #0a0a0f;
+      --dark: #0f0f1a;
+      --panel: #13131f;
+      --panel2: #1a1a2e;
+      --neon-blue: #00d4ff;
+      --neon-pink: #ff2d78;
+      --neon-green: #00ff88;
+      --neon-yellow: #ffe600;
+      --tile-bg: #1c1c30;
+      --tile-correct: #0a2a1a;
+      --tile-correct-border: #00ff88;
+      --tile-empty: #0d0d18;
+      --text: #e0e8ff;
+      --muted: #4a5080;
     }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: radial-gradient(#cfd8ff 1px, transparent 1px);
-      background-size: 22px 22px;
-      display: flex;
-      justify-content: center;
+      background: var(--black);
+      font-family: 'Rajdhani', sans-serif;
+      color: var(--text);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      position: relative;
     }
 
-    .container {
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.15) 2px,
+        rgba(0,0,0,0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.65) 100%);
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Animated grid bg */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.035) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridPan 20s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes gridPan {
+      0%   { background-position: 0 0; }
+      100% { background-position: 40px 40px; }
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 10;
       width: 100%;
-      max-width: 420px;
-      padding: 20px;
-      box-sizing: border-box;
+      max-width: 480px;
+      padding: 28px 20px 60px;
+    }
+
+    /* ── TOP NAV ── */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      animation: fadeDown 0.5s ease both;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      background: var(--panel);
+      transition: color 0.2s, border-color 0.2s;
+      letter-spacing: 1px;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-blue);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .breadcrumb {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    .breadcrumb span {
+      color: var(--neon-pink);
+    }
+
+    /* ── HEADER ── */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+      animation: fadeDown 0.5s 0.1s ease both;
+    }
+
+    .game-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 4vw, 20px);
+      color: var(--neon-blue);
+      text-shadow:
+        0 0 10px var(--neon-blue),
+        0 0 30px rgba(0, 212, 255, 0.4);
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      animation: neonFlicker 7s infinite;
+    }
+
+    @keyframes neonFlicker {
+      0%, 94%, 96%, 98%, 100% { opacity: 1; }
+      95%, 97%, 99% { opacity: 0.85; }
+    }
+
+    .title-underline {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+      margin: 0 auto;
+      width: 60%;
+      opacity: 0.5;
+    }
+
+    /* ── STATS ROW ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s 0.2s ease both;
+    }
+
+    .stat-box {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      padding: 10px 6px;
       text-align: center;
     }
 
-    h1 {
-      border: 3px solid var(--pink);
-      border-radius: 30px;
-      padding: 12px;
-      color: var(--pink);
-      font-size: 22px;
-      margin-bottom: 12px;
-    }
-
-    .level {
+    .stat-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: var(--muted);
+      letter-spacing: 1px;
       margin-bottom: 6px;
-      font-weight: bold;
-      color: var(--blue);
     }
 
-    .mode {
-      margin-bottom: 12px;
-      font-weight: bold;
-      font-size: 15px;
-      color: var(--pink);
-      text-shadow: 0 0 6px #ff9cc0, 0 0 10px #ff3c7e;
+    .stat-value {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: var(--neon-blue);
+      text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
     }
 
+    .stat-value.pink { color: var(--neon-pink); text-shadow: 0 0 8px rgba(255, 45, 120, 0.5); }
+    .stat-value.green { color: var(--neon-green); text-shadow: 0 0 8px rgba(0, 255, 136, 0.5); }
+    .stat-value.yellow { color: var(--neon-yellow); text-shadow: 0 0 8px rgba(255, 230, 0, 0.5); }
+
+    /* ── MODE BADGE ── */
+    .mode-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s 0.25s ease both;
+    }
+
+    .mode-badge {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 7px 14px;
+      border-radius: 20px;
+      border: 1px solid;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+    }
+
+    .mode-easy    { color: var(--neon-green);  border-color: rgba(0,255,136,0.4);  background: rgba(0,255,136,0.08);  text-shadow: 0 0 8px var(--neon-green); }
+    .mode-medium  { color: var(--neon-blue);   border-color: rgba(0,212,255,0.4);  background: rgba(0,212,255,0.08);  text-shadow: 0 0 8px var(--neon-blue); }
+    .mode-hard    { color: var(--neon-yellow); border-color: rgba(255,230,0,0.4);  background: rgba(255,230,0,0.08);  text-shadow: 0 0 8px var(--neon-yellow); }
+    .mode-extreme { color: var(--neon-pink);   border-color: rgba(255,45,120,0.4); background: rgba(255,45,120,0.08); text-shadow: 0 0 8px var(--neon-pink); animation: pulsePink 1s infinite alternate; }
+
+    @keyframes pulsePink {
+      from { box-shadow: 0 0 6px rgba(255,45,120,0.2); }
+      to   { box-shadow: 0 0 18px rgba(255,45,120,0.5); }
+    }
+
+    /* ── CONTROLS ── */
     .controls {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 25px;
       gap: 10px;
-      flex-wrap: wrap;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s 0.3s ease both;
     }
 
     .btn {
-      padding: 10px 16px;
-      border-radius: 12px;
-      border: 2px solid var(--pink);
-      background: white;
-      color: var(--pink);
-      font-weight: bold;
+      flex: 1;
+      padding: 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,45,120,0.4);
+      background: rgba(255,45,120,0.08);
+      color: var(--neon-pink);
       cursor: pointer;
-      min-width: 70px;
+      letter-spacing: 1px;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
     }
 
-    .status {
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: 2px solid var(--blue);
-      color: var(--blue);
-      font-weight: bold;
-      font-size: 14px;
-      background: white;
+    .btn:hover {
+      background: rgba(255,45,120,0.15);
+      box-shadow: 0 0 14px rgba(255,45,120,0.25);
     }
 
+    .btn:active { transform: scale(0.97); }
+
+    /* ── BOARD ── */
     .board-wrapper {
       display: flex;
       justify-content: center;
-      margin-top: 25px;
-      margin-bottom: 25px;
+      margin-bottom: 24px;
+      animation: fadeUp 0.5s 0.35s ease both;
     }
 
     .board {
-      position: relative;
-      background: #eeeeee;
+      background: var(--panel2);
       padding: 14px;
-      border-radius: 18px;
-      box-shadow: inset 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 16px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      box-shadow:
+        0 0 30px rgba(0, 212, 255, 0.05),
+        inset 0 2px 8px rgba(0,0,0,0.4);
       display: grid;
-      grid-template-columns: repeat(3, 70px);
-      grid-template-rows: repeat(3, 70px);
-      gap: 12px;
+      grid-template-columns: repeat(3, 78px);
+      grid-template-rows: repeat(3, 78px);
+      gap: 10px;
     }
 
     .tile {
-      background: white;
-      border-radius: 14px;
-      font-size: 24px;
-      font-weight: bold;
+      background: var(--tile-bg);
+      border-radius: 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 20px;
+      color: var(--neon-blue);
+      text-shadow: 0 0 8px rgba(0,212,255,0.5);
       display: flex;
       justify-content: center;
       align-items: center;
       cursor: pointer;
-      box-shadow: 0 4px 0 #b0b0b0, 0 8px 12px rgba(0,0,0,0.15);
-      transition: transform 0.25s ease;
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 6px 14px rgba(0,0,0,0.3);
+      transition: transform 0.22s ease, box-shadow 0.15s ease;
       will-change: transform;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Tile shine */
+    .tile::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 40%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
+      border-radius: 10px 10px 0 0;
+      pointer-events: none;
+    }
+
+    .tile:hover {
+      box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.2);
+      border-color: rgba(0,212,255,0.35);
+    }
+
+    .tile:active {
+      transform: translateY(3px) !important;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.5);
     }
 
     .tile.correct {
-      background: var(--light-blue);
-      color: #1b3fff;
+      background: var(--tile-correct);
+      border-color: rgba(0, 255, 136, 0.4);
+      color: var(--neon-green);
+      text-shadow: 0 0 10px rgba(0,255,136,0.7);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 0 14px rgba(0,255,136,0.15);
     }
 
-    .empty {
-      background: #e6e6e6;
-      box-shadow: inset 0 3px 6px rgba(0,0,0,0.2);
+    .tile.empty {
+      background: var(--tile-empty);
+      border-color: rgba(255,255,255,0.04);
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.5);
       cursor: default;
     }
 
+    .tile.empty::after { display: none; }
+
+    /* ── LIMIT BARS ── */
+    .limit-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s 0.4s ease both;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-label {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: var(--muted);
+      width: 40px;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .bar-fill.time-bar { background: linear-gradient(90deg, var(--neon-blue), var(--neon-green)); }
+    .bar-fill.move-bar { background: linear-gradient(90deg, var(--neon-pink), var(--neon-yellow)); }
+
+    .bar-fill.danger { background: linear-gradient(90deg, #ff2d78, #ff0000) !important; }
+
+    .bar-val {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: var(--muted);
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── TOAST ── */
     .toast {
       position: fixed;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      background: #2f5cff;
-      color: white;
-      padding: 14px 22px;
-      border-radius: 25px;
-      font-weight: bold;
+      background: var(--panel2);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--neon-blue);
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.4s, bottom 0.4s;
+      transition: opacity 0.3s, bottom 0.3s;
+      white-space: nowrap;
+      box-shadow: 0 0 20px rgba(0,212,255,0.15);
+      z-index: 200;
     }
 
     .toast.show {
       opacity: 1;
       bottom: 50px;
     }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Monkey Touch</h1>
+  <div class="bg-grid"></div>
 
-    <div class="level">Level: <span id="level">1</span></div>
-    <div class="mode" id="mode"></div>
+  <div class="wrapper">
 
-    <div class="controls">
-      <button class="btn" id="newGame">NEW</button>
-      <button class="btn" id="resetGame">RESET</button>
-      <div class="status">Time: <span id="time">0</span>s</div>
-      <div class="status">Moves: <span id="moves">0</span></div>
+    <!-- Top Nav -->
+    <nav class="top-nav">
+      <a class="back-btn" href="brainarcade.html">◀ BACK</a>
+      <div class="breadcrumb">BRAIN ARCADE &nbsp;/&nbsp; <span>MONKEY TOUCH</span></div>
+    </nav>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="game-title">🐒 MONKEY TOUCH</div>
+      <div class="title-underline"></div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">LEVEL</div>
+        <div class="stat-value pink" id="level">1</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">TIME</div>
+        <div class="stat-value" id="time">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">MOVES</div>
+        <div class="stat-value green" id="moves">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">BEST</div>
+        <div class="stat-value yellow" id="best">--</div>
+      </div>
     </div>
 
+    <!-- Mode Badge -->
+    <div class="mode-row">
+      <div class="mode-badge mode-easy" id="mode">EASY</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn" id="newGame">NEW GAME</button>
+      <button class="btn" id="resetGame">RESET</button>
+    </div>
+
+    <!-- Limit Bars (shown on hard/extreme) -->
+    <div class="limit-bars" id="limitBars" style="display:none">
+      <div class="bar-row" id="timeBarRow">
+        <div class="bar-label">TIME</div>
+        <div class="bar-track"><div class="bar-fill time-bar" id="timeBar" style="width:100%"></div></div>
+        <div class="bar-val" id="timeBarVal"></div>
+      </div>
+      <div class="bar-row" id="moveBarRow" style="display:none">
+        <div class="bar-label">MOVES</div>
+        <div class="bar-track"><div class="bar-fill move-bar" id="moveBar" style="width:100%"></div></div>
+        <div class="bar-val" id="moveBarVal"></div>
+      </div>
+    </div>
+
+    <!-- Board -->
     <div class="board-wrapper">
       <div class="board" id="board"></div>
     </div>
+
   </div>
 
   <div class="toast" id="toast"></div>
 
   <script>
-    const board = document.getElementById("board");
-    const movesEl = document.getElementById("moves");
-    const timeEl = document.getElementById("time");
-    const levelEl = document.getElementById("level");
-    const modeEl = document.getElementById("mode");
-    const newBtn = document.getElementById("newGame");
-    const resetBtn = document.getElementById("resetGame");
-    const toast = document.getElementById("toast");
+    const boardEl   = document.getElementById("board");
+    const movesEl   = document.getElementById("moves");
+    const timeEl    = document.getElementById("time");
+    const levelEl   = document.getElementById("level");
+    const modeEl    = document.getElementById("mode");
+    const bestEl    = document.getElementById("best");
+    const newBtn    = document.getElementById("newGame");
+    const resetBtn  = document.getElementById("resetGame");
+    const toastEl   = document.getElementById("toast");
+    const limitBars = document.getElementById("limitBars");
+    const timeBar   = document.getElementById("timeBar");
+    const timeBarVal= document.getElementById("timeBarVal");
+    const moveBar   = document.getElementById("moveBar");
+    const moveBarVal= document.getElementById("moveBarVal");
+    const moveBarRow= document.getElementById("moveBarRow");
 
-    const gridSize = 3; // ALWAYS 3x3
+    const BEST_KEY = "mt1_best";
 
     let level = 1;
-    let tiles = [];
-    let solved = [];
-    let moves = 0;
-    let time = 0;
-    let timer = null;
-    let started = false;
+    let tiles = [], solved = [];
+    let moves = 0, time = 0;
+    let timer = null, started = false;
+    let timeLimit = null, moveLimit = null, showHints = true;
 
-    let timeLimit = null;
-    let moveLimit = null;
-    let showHints = true;
-
+    // Audio
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playClick() {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = "square";
-      osc.frequency.value = 600;
-      gain.gain.value = 0.05;
+      osc.frequency.value = 660;
+      gain.gain.value = 0.04;
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.05);
+      osc.stop(audioCtx.currentTime + 0.04);
     }
 
+    function playWin() {
+      [523, 659, 784, 1047].forEach((f, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = f;
+        gain.gain.value = 0.06;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const t = audioCtx.currentTime + i * 0.12;
+        osc.start(t);
+        osc.stop(t + 0.1);
+      });
+    }
+
+    // Best score
+    function getBest(lvl) {
+      const raw = localStorage.getItem(BEST_KEY + lvl);
+      return raw ? parseInt(raw) : null;
+    }
+
+    function saveBest(lvl, t) {
+      const cur = getBest(lvl);
+      if (cur === null || t < cur) localStorage.setItem(BEST_KEY + lvl, t);
+    }
+
+    function updateBestDisplay() {
+      const b = getBest(level);
+      bestEl.textContent = b !== null ? b + "s" : "--";
+    }
+
+    // Puzzle logic
     function generateSolved() {
       solved = [];
       for (let i = 1; i < 9; i++) solved.push(i);
       solved.push(null);
     }
 
-    // Scramble by making valid moves many times (increases difficulty)
     function deepShuffle(steps) {
       tiles = [...solved];
       let empty = tiles.indexOf(null);
-
       for (let i = 0; i < steps; i++) {
-        const row = Math.floor(empty / 3);
-        const col = empty % 3;
+        const row = Math.floor(empty / 3), col = empty % 3;
         const neighbors = [];
-
         if (row > 0) neighbors.push(empty - 3);
         if (row < 2) neighbors.push(empty + 3);
         if (col > 0) neighbors.push(empty - 1);
         if (col < 2) neighbors.push(empty + 1);
-
         const move = neighbors[Math.floor(Math.random() * neighbors.length)];
         [tiles[empty], tiles[move]] = [tiles[move], tiles[empty]];
         empty = move;
       }
     }
 
+    const modeConfigs = {
+      1: { label: "EASY",           cls: "mode-easy",    shuffle: 20,  timeLimit: null, moveLimit: null, hints: true  },
+      2: { label: "MEDIUM",         cls: "mode-medium",  shuffle: 50,  timeLimit: null, moveLimit: null, hints: true  },
+      3: { label: "HARD",           cls: "mode-hard",    shuffle: 100, timeLimit: 90,   moveLimit: null, hints: true  },
+      4: { label: "EXTREMELY HARD", cls: "mode-extreme", shuffle: 200, timeLimit: 60,   moveLimit: 80,   hints: false },
+    };
+
     function setupDifficulty() {
-      if (level === 1) {
-        modeEl.textContent = "EASY";
-        deepShuffle(20);
-        timeLimit = null;
-        moveLimit = null;
-        showHints = true;
-      }
-      else if (level === 2) {
-        modeEl.textContent = "MEDIUM";
-        deepShuffle(50);
-        timeLimit = null;
-        moveLimit = null;
-        showHints = true;
-      }
-      else if (level === 3) {
-        modeEl.textContent = "HARD";
-        deepShuffle(100);
-        timeLimit = 90;
-        moveLimit = null;
-        showHints = true;
-      }
-      else {
-        modeEl.textContent = "EXTREMELY HARD";
-        deepShuffle(200);
-        timeLimit = 60;      // strong pressure
-        moveLimit = 80;      // limited moves
-        showHints = false;   // no correct highlighting
+      const cfg = modeConfigs[Math.min(level, 4)];
+      modeEl.textContent = cfg.label;
+      modeEl.className = "mode-badge " + cfg.cls;
+      deepShuffle(cfg.shuffle);
+      timeLimit = cfg.timeLimit;
+      moveLimit = cfg.moveLimit;
+      showHints  = cfg.hints;
+
+      // Limit bars
+      if (timeLimit || moveLimit) {
+        limitBars.style.display = "flex";
+        if (timeLimit) {
+          timeBarVal.textContent = timeLimit + "s";
+          timeBar.style.width = "100%";
+          timeBar.classList.remove("danger");
+        }
+        if (moveLimit) {
+          moveBarRow.style.display = "flex";
+          moveBarVal.textContent = moveLimit;
+          moveBar.style.width = "100%";
+          moveBar.classList.remove("danger");
+        } else {
+          moveBarRow.style.display = "none";
+        }
+      } else {
+        limitBars.style.display = "none";
       }
     }
 
     function startGame() {
       clearInterval(timer);
-      moves = 0;
-      time = 0;
-      started = false;
-      movesEl.textContent = moves;
-      timeEl.textContent = time;
+      moves = 0; time = 0; started = false;
+      movesEl.textContent = "0";
+      timeEl.textContent  = "0";
       levelEl.textContent = level;
-
       generateSolved();
       setupDifficulty();
+      updateBestDisplay();
       render();
     }
 
     function render() {
-      const oldTiles = Array.from(board.children);
+      const oldTiles = Array.from(boardEl.children);
       const positions = {};
-
       oldTiles.forEach(el => {
-        const rect = el.getBoundingClientRect();
-        positions[el.dataset.id] = rect;
+        positions[el.dataset.id] = el.getBoundingClientRect();
       });
 
-      board.innerHTML = "";
+      boardEl.innerHTML = "";
 
       tiles.forEach((value, index) => {
         const tile = document.createElement("div");
@@ -298,105 +656,102 @@
           tile.classList.add("empty");
         } else {
           tile.textContent = value;
-
           if (showHints && value === solved[index]) tile.classList.add("correct");
-
           tile.addEventListener("click", () => moveTile(index));
         }
 
-        board.appendChild(tile);
+        boardEl.appendChild(tile);
       });
 
-      const newTiles = Array.from(board.children);
-      newTiles.forEach(el => {
-        const oldPos = positions[el.dataset.id];
-        if (!oldPos) return;
-        const newPos = el.getBoundingClientRect();
-        const dx = oldPos.left - newPos.left;
-        const dy = oldPos.top - newPos.top;
-
+      // Animate slide
+      Array.from(boardEl.children).forEach(el => {
+        const old = positions[el.dataset.id];
+        if (!old) return;
+        const now = el.getBoundingClientRect();
+        const dx = old.left - now.left;
+        const dy = old.top  - now.top;
         if (dx || dy) {
-          el.style.transform = `translate(${dx}px, ${dy}px)`;
-          requestAnimationFrame(() => {
-            el.style.transform = "translate(0, 0)";
-          });
+          el.style.transform = `translate(${dx}px,${dy}px)`;
+          requestAnimationFrame(() => { el.style.transform = ""; });
         }
       });
+    }
+
+    function updateBars() {
+      if (timeLimit) {
+        const pct = Math.max(0, ((timeLimit - time) / timeLimit) * 100);
+        timeBar.style.width = pct + "%";
+        timeBarVal.textContent = (timeLimit - time) + "s";
+        timeBar.classList.toggle("danger", pct < 25);
+      }
+      if (moveLimit) {
+        const pct = Math.max(0, ((moveLimit - moves) / moveLimit) * 100);
+        moveBar.style.width = pct + "%";
+        moveBarVal.textContent = (moveLimit - moves);
+        moveBar.classList.toggle("danger", pct < 25);
+      }
     }
 
     function moveTile(index) {
       const emptyIndex = tiles.indexOf(null);
-      const row = Math.floor(index / 3);
-      const col = index % 3;
-      const erow = Math.floor(emptyIndex / 3);
-      const ecol = emptyIndex % 3;
-
+      const row  = Math.floor(index / 3),      col  = index % 3;
+      const erow = Math.floor(emptyIndex / 3), ecol = emptyIndex % 3;
       const isNeighbor =
         (row === erow && Math.abs(col - ecol) === 1) ||
         (col === ecol && Math.abs(row - erow) === 1);
 
-      if (isNeighbor) {
-        if (!started) {
-          started = true;
-          timer = setInterval(() => {
-            time++;
-            timeEl.textContent = time;
+      if (!isNeighbor) return;
 
-            if (timeLimit && time >= timeLimit) {
-              gameOver("⏱ Time Over! Try Again");
-            }
-          }, 1000);
-        }
-
-        playClick();
-
-        [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
-        moves++;
-        movesEl.textContent = moves;
-
-        if (moveLimit && moves >= moveLimit) {
-          gameOver("❌ Move Limit Exceeded!");
-          return;
-        }
-
-        render();
-        checkWin();
+      if (!started) {
+        started = true;
+        timer = setInterval(() => {
+          time++;
+          timeEl.textContent = time;
+          updateBars();
+          if (timeLimit && time >= timeLimit) gameOver("⏱ TIME OVER!");
+        }, 1000);
       }
+
+      playClick();
+      [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+      moves++;
+      movesEl.textContent = moves;
+      updateBars();
+
+      if (moveLimit && moves >= moveLimit) { gameOver("MOVE LIMIT EXCEEDED"); return; }
+
+      render();
+      checkWin();
     }
 
     function checkWin() {
-      if (tiles.every((v, i) => v === solved[i])) {
-        clearInterval(timer);
-        showToast(`🎉 Level ${level} Cleared!`);
-
-        setTimeout(() => {
-          if (level < 4) {
-            level++;
-            startGame();
-          } else {
-            showToast("🏆 ALL LEVELS COMPLETED!");
-          }
-        }, 1200);
-      }
-    }
-
-    function gameOver(message) {
+      if (!tiles.every((v, i) => v === solved[i])) return;
       clearInterval(timer);
-      showToast(message);
-      setTimeout(startGame, 1500);
+      playWin();
+      saveBest(level, time);
+      showToast(`LEVEL ${level} CLEARED!`);
+
+      setTimeout(() => {
+        if (level < 4) { level++; startGame(); }
+        else showToast("ALL LEVELS COMPLETE!");
+      }, 1400);
     }
 
-    function showToast(message) {
-      toast.textContent = message;
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 1200);
+    function gameOver(msg) {
+      clearInterval(timer);
+      showToast(msg, true);
+      setTimeout(startGame, 1600);
     }
 
-    newBtn.addEventListener("click", () => {
-      level = 1;
-      startGame();
-    });
+    function showToast(msg, isError = false) {
+      toastEl.textContent = msg;
+      toastEl.style.color = isError ? "var(--neon-pink)" : "var(--neon-blue)";
+      toastEl.style.borderColor = isError ? "rgba(255,45,120,0.4)" : "rgba(0,212,255,0.3)";
+      toastEl.classList.add("show");
+      setTimeout(() => toastEl.classList.remove("show"), 1400);
+    }
 
+    newBtn.addEventListener("click", () => { level = 1; startGame(); });
     resetBtn.addEventListener("click", startGame);
 
     startGame();
